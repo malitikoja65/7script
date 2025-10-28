@@ -1,5 +1,5 @@
--- Modern Roblox Script: Highlight, Fly, Walkspeed i Junkyard ESP (Highlight + Tekst)
--- Poprawiono: Dynamiczne pobieranie nazwy pojazdu z atrybutu "DisplayName" lub użycie vehicle.Name.
+-- Modern Roblox Script with Highlight, Fly, Walkspeed and GUI
+-- TYLKO PODŚWIETLENIE (Highlight ESP) dla pojazdów Junkyard.
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -13,8 +13,7 @@ local humanoid = character:WaitForChild("Humanoid")
 local camera = workspace.CurrentCamera
 
 -- Konfiguracja Gry
-local JUNKYARD_CONTAINER_NAME = "Vehicles" -- <-- SPRAWDŹ! Upewnij się, że ta nazwa folderu jest POPRAWNA!
-local DISPLAY_NAME_ATTRIBUTE = "DisplayName" -- <-- Nazwa Atrybutu, który przechowuje czytelną nazwę pojazdu (często spotykana)
+local JUNKYARD_CONTAINER_NAME = "Vehicles" -- <-- Sprawdź, czy ta nazwa folderu jest POPRAWNA!
 
 -- Configuration
 local config = {
@@ -33,7 +32,7 @@ local config = {
     },
     junkyardESP = {
         enabled = false,
-        color = Color3.fromRGB(255, 100, 0),
+        color = Color3.fromRGB(255, 100, 0), -- Nowy kolor dla ESP Junkyard
         transparency = 0.5
     },
     menuKey = Enum.KeyCode.RightControl
@@ -46,9 +45,9 @@ local flying = false
 local flySpeed = config.fly.speed
 local isChangingKeybind = false
 local keybindButton = nil 
-local espObjects = {} -- Przechowuje Highlight ORAZ BillboardGui
+local espHighlights = {} -- Zmieniono nazwę, aby odzwierciedlić, że przechowujemy tylko Highlight
 
--- === GUI SETUP (Bez zmian) ===
+-- === GUI SETUP (pozostał bez zmian) ===
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ModernScriptGUI"
@@ -488,17 +487,23 @@ local function createColorPicker(parent, text, defaultColor, order, callback)
     
     return Container
 end
+
+local function createColorPickerESP(parent, text, defaultColor, order, callback)
+    local picker = createColorPicker(parent, text, defaultColor, order, callback)
+    -- Tutaj usuniesz lub skomentujesz Label, który mówi 'Change Menu Keybind: RControl', 
+    -- ale to nie jest w createColorPicker, więc po prostu dodaj go normalnie.
+    return picker
+end
 -- === KONIEC COLOR PICKER ===
 
--- === LOGIKA JUNKYARD ESP (Highlight + BillboardGui) ===
+-- === LOGIKA JUNKYARD ESP (Uproszczona: TYLKO HIGHLIGHT) ===
 local espConnection = nil
 
 local function cleanupESP()
-    for _, obj in pairs(espObjects) do
-        if obj.Highlight then obj.Highlight:Destroy() end
-        if obj.Billboard then obj.Billboard:Destroy() end
+    for vehicle, highlight in pairs(espHighlights) do
+        if highlight then highlight:Destroy() end
     end
-    espObjects = {}
+    espHighlights = {}
 end
 
 local function updateJunkyardESP()
@@ -512,96 +517,50 @@ local function updateJunkyardESP()
     end
 
     if not espConnection then
-        espConnection = RunService.RenderStepped:Connect(function()
+        espConnection = RunService.Heartbeat:Connect(function()
             local vehiclesContainer = workspace:FindFirstChild(JUNKYARD_CONTAINER_NAME)
-            local myHrp = character and character:FindFirstChild("HumanoidRootPart")
 
-            if not vehiclesContainer or not myHrp then return end
+            if not vehiclesContainer then
+                -- print("ESP Debug: Nie znaleziono kontenera pojazdów: " .. JUNKYARD_CONTAINER_NAME)
+                return
+            end
 
             local currentlyVisible = {}
 
             for _, vehicle in ipairs(vehiclesContainer:GetChildren()) do
+                -- Sprawdzenie, czy to model I ma atrybut "Junkyard" = true
                 if vehicle:IsA("Model") and vehicle:GetAttribute("Junkyard") == true then
                     
-                    -- Lepszy sposób na pobranie nazwy:
-                    local displayName = vehicle:GetAttribute(DISPLAY_NAME_ATTRIBUTE)
-                    local vehicleId = (displayName and type(displayName) == "string" and displayName ~= "") 
-                                    and displayName 
-                                    or vehicle.Name
+                    -- print("ESP Debug: Znaleziono pojazd Junkyard: " .. vehicle.Name)
                     
-                    -- Bezpieczne znalezienie części, do której przypinamy BillboardGui
-                    local primaryPart = vehicle.PrimaryPart 
-            
-                    if not primaryPart then
-                        primaryPart = vehicle:FindFirstChild("Body") 
-                        if not primaryPart or not primaryPart:IsA("BasePart") then
-                            primaryPart = vehicle:FindFirstChildOfClass("BasePart")
-                        end
+                    currentlyVisible[vehicle] = true
+                    
+                    -- Tworzenie/Aktualizacja Highlight
+                    if not espHighlights[vehicle] then
+                        local highlight = Instance.new("Highlight")
+                        highlight.FillColor = config.junkyardESP.color
+                        highlight.FillTransparency = config.junkyardESP.transparency
+                        highlight.OutlineTransparency = 1
+                        highlight.Parent = vehicle -- Highlight działa najlepiej, gdy jest rodzicem modelu
+
+                        espHighlights[vehicle] = highlight
+                        -- print("ESP Debug: Utworzono nowe Highlight dla: " .. vehicle.Name)
                     end
                     
-                    if primaryPart and primaryPart:IsA("BasePart") then 
-                        
-                        currentlyVisible[vehicle] = true
-                        
-                        -- Tworzenie/Aktualizacja
-                        if not espObjects[vehicle] then
-                            -- 1. Highlight
-                            local highlight = Instance.new("Highlight")
-                            highlight.FillColor = config.junkyardESP.color
-                            highlight.FillTransparency = config.junkyardESP.transparency
-                            highlight.OutlineTransparency = 1
-                            highlight.Parent = vehicle 
-
-                            -- 2. Billboard (ESP Label)
-                            local billboard = Instance.new("BillboardGui")
-                            billboard.Size = UDim2.new(0, 200, 0, 50)
-                            billboard.AlwaysOnTop = true
-                            billboard.MaxDistance = 500 
-                            billboard.Adornee = primaryPart 
-                            
-                            local textLabel = Instance.new("TextLabel")
-                            textLabel.Size = UDim2.new(1, 0, 1, 0)
-                            textLabel.BackgroundTransparency = 1
-                            textLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-                            textLabel.TextScaled = true
-                            textLabel.TextStrokeTransparency = 0 
-                            textLabel.Font = Enum.Font.SourceSansBold
-                            textLabel.Parent = billboard
-
-                            billboard.Parent = camera 
-
-                            espObjects[vehicle] = {
-                                Highlight = highlight,
-                                Billboard = billboard,
-                                Label = textLabel,
-                                PrimaryPart = primaryPart
-                            }
-                        end
-
-                        -- AKTUALIZACJA TEKSTU I ODLEGŁOŚCI
-                        local esp = espObjects[vehicle]
-                        local distance = math.floor((primaryPart.Position - myHrp.Position).Magnitude)
-                        -- Używamy znalezionej dynamicznej nazwy:
-                        esp.Label.Text = vehicleId .. "\n[ " .. distance .. "m ]"
-                        
-                    end
                 end
             end
 
-            -- Usuwanie nieaktualnych obiektów ESP
-            for vehicle, obj in pairs(espObjects) do
+            -- Usuwanie Highlight z pojazdów, które już nie istnieją lub straciły atrybut
+            for vehicle, highlight in pairs(espHighlights) do
                 if not currentlyVisible[vehicle] then
-                    if obj.Highlight then obj.Highlight:Destroy() end
-                    if obj.Billboard then obj.Billboard:Destroy() end
-                    espObjects[vehicle] = nil
+                    if highlight then highlight:Destroy() end
+                    espHighlights[vehicle] = nil
                 end
             end
         end)
     end
 end
 -- === KONIEC LOGIKI JUNKYARD ESP ===
-
--- ... (Pozostała część GUI i logiki jest taka sama) ...
 
 -- VISUAL TAB 
 createLabel(tabs.visual.content, "Player Highlight Settings", 1)
@@ -659,21 +618,20 @@ createColorPicker(tabs.visual.content, "Player Highlight Color", config.highligh
     end
 end)
 
--- NOWY ELEMENT ESP JUNKYARD (Highlight + Tekst)
+-- NOWY ELEMENT ESP JUNKYARD (tylko Highlight)
 createLabel(tabs.visual.content, "---", 4)
-createLabel(tabs.visual.content, "Junkyard ESP Settings (Highlight + Text)", 5)
+createLabel(tabs.visual.content, "Junkyard Highlight Settings", 5)
 
-createToggle(tabs.visual.content, "Enable Junkyard ESP", 6, function(enabled)
+createToggle(tabs.visual.content, "Enable Junkyard Highlight", 6, function(enabled)
     config.junkyardESP.enabled = enabled
     updateJunkyardESP()
 end)
 
 createColorPicker(tabs.visual.content, "Junkyard Highlight Color", config.junkyardESP.color, 7, function(color)
     config.junkyardESP.color = color
-    -- Aktualizacja kolorów dla istniejących Highlight
-    for _, obj in pairs(espObjects) do
-        if obj.Highlight then
-            obj.Highlight.FillColor = color
+    for _, highlight in pairs(espHighlights) do
+        if highlight then
+            highlight.FillColor = color
         end
     end
 end)
