@@ -1,5 +1,6 @@
 -- Modern Roblox Script with Highlight, Fly, Walkspeed and GUI
 -- TYLKO PODŚWIETLENIE (Highlight ESP) dla pojazdów Junkyard.
+-- DODANO KEY SYSTEM (Poprawiono ładowanie menu i tytuł)
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -11,6 +12,10 @@ local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local camera = workspace.CurrentCamera
+
+-- Konfiguracja Key System
+local REQUIRED_KEY = "7Key" -- <--- ZMIEŃ TEN KLUCZ NA SWÓJ WŁASNY!
+local isAuthorized = false 
 
 -- Konfiguracja Gry
 local JUNKYARD_CONTAINER_NAME = "Vehicles" -- <-- Sprawdź, czy ta nazwa folderu jest POPRAWNA!
@@ -45,14 +50,127 @@ local flying = false
 local flySpeed = config.fly.speed
 local isChangingKeybind = false
 local keybindButton = nil 
-local espHighlights = {} -- Zmieniono nazwę, aby odzwierciedlić, że przechowujemy tylko Highlight
+local espHighlights = {} 
 
--- === GUI SETUP (pozostał bez zmian) ===
+local KeyGui = nil
+local MainGui = nil
+local TitleText = nil -- Deklaracja, aby funkcja KeyGUI mogła go użyć
+
+-- === KEY SYSTEM GUI SETUP ===
+
+local function createKeyInputGUI()
+    KeyGui = Instance.new("ScreenGui")
+    KeyGui.Name = "KeyInputGUI"
+    KeyGui.ResetOnSpawn = false
+    KeyGui.ZIndexBehavior = Enum.ZIndexBehavior.Global 
+    KeyGui.Parent = game:GetService("CoreGui")
+
+    local KeyFrame = Instance.new("Frame")
+    KeyFrame.Name = "KeyFrame"
+    KeyFrame.Size = UDim2.new(0, 300, 0, 150)
+    KeyFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
+    KeyFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    KeyFrame.BorderSizePixel = 0
+    KeyFrame.Parent = KeyGui
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 12)
+    Corner.Parent = KeyFrame
+    
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 40)
+    Title.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.Text = "Enter An Key"
+    Title.TextSize = 16
+    Title.Font = Enum.Font.GothamBold
+    Title.Parent = KeyFrame
+
+    local KeyBox = Instance.new("TextBox")
+    KeyBox.Name = "KeyBox"
+    KeyBox.Size = UDim2.new(1, -40, 0, 30)
+    KeyBox.Position = UDim2.new(0.5, -130, 0, 60)
+    KeyBox.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+    KeyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    KeyBox.PlaceholderText = "Wpisz klucz..."
+    KeyBox.TextSize = 14
+    KeyBox.Font = Enum.Font.Gotham
+    KeyBox.TextEditable = true
+    KeyBox.Parent = KeyFrame
+    
+    local InputCorner = Instance.new("UICorner")
+    InputCorner.CornerRadius = UDim.new(0, 8)
+    InputCorner.Parent = KeyBox
+
+    local SubmitButton = Instance.new("TextButton")
+    SubmitButton.Size = UDim2.new(1, -40, 0, 35)
+    SubmitButton.Position = UDim2.new(0.5, -130, 0, 100)
+    SubmitButton.BackgroundColor3 = Color3.fromRGB(50, 120, 255)
+    SubmitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SubmitButton.Text = "Check"
+    SubmitButton.TextSize = 16
+    SubmitButton.Font = Enum.Font.GothamBold
+    SubmitButton.Parent = KeyFrame
+    
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(0, 8)
+    ButtonCorner.Parent = SubmitButton
+    
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Name = "StatusLabel"
+    StatusLabel.Size = UDim2.new(1, 0, 0, 20)
+    StatusLabel.Position = UDim2.new(0, 0, 1, -20)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    StatusLabel.Text = "Waiting for an key..."
+    StatusLabel.TextSize = 12
+    StatusLabel.Font = Enum.Font.Gotham
+    StatusLabel.Parent = KeyFrame
+
+    -- P O P R A W I O N A   F U N K C J A   C H E C K K E Y
+    local function checkKey(key)
+        if key == REQUIRED_KEY then
+            isAuthorized = true
+            StatusLabel.Text = "Key is valid! Loading..."
+            wait(0.5)
+            KeyGui:Destroy()
+            
+            -- Wymuszone otwarcie głównego menu
+            if MainGui then MainGui.Enabled = true end 
+            
+            -- POPRAWKA: Ustawienie poprawnego tytułu
+            if TitleText then TitleText.Text = "7Menu" end 
+            
+            print("7Menu loaded successfully! Menu: " .. config.menuKey.Name)
+        else
+            StatusLabel.Text = "Invialid key!"
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+            wait(1.5)
+            StatusLabel.Text = "Enter key..."
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            KeyBox.Text = ""
+        end
+    end
+    -- K O N I E C   P O P R A W I O N E J   F U N K C J I
+
+    SubmitButton.MouseButton1Click:Connect(function()
+        checkKey(KeyBox.Text)
+    end)
+    
+    KeyBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            checkKey(KeyBox.Text)
+        end
+    end)
+end
+
+-- === GŁÓWNY GUI SETUP ===
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ModernScriptGUI"
+ScreenGui.Name = "7Menu"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Enabled = false -- Domyślnie wyłączony, włączy się po autoryzacji
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -86,11 +204,11 @@ TitleFix.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 TitleFix.BorderSizePixel = 0
 TitleFix.Parent = TitleBar
 
-local TitleText = Instance.new("TextLabel")
+TitleText = Instance.new("TextLabel") -- Użycie wcześniej zadeklarowanej zmiennej
 TitleText.Size = UDim2.new(1, -20, 1, 0)
 TitleText.Position = UDim2.new(0, 20, 0, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "Modern Script Hub"
+TitleText.Text = "Wating for an key..." 
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 18
 TitleText.Font = Enum.Font.GothamBold
@@ -252,6 +370,8 @@ local function createToggle(parent, text, order, callback)
     local toggled = false
     
     ToggleButton.MouseButton1Click:Connect(function()
+        if not isAuthorized then return end -- BLOKADA
+
         toggled = not toggled
         
         if toggled then
@@ -318,6 +438,7 @@ local function createSlider(parent, text, min, max, default, order, callback)
     local dragging = false
     
     SliderButton.MouseButton1Down:Connect(function()
+        if not isAuthorized then return end -- BLOKADA
         dragging = true
     end)
     
@@ -328,6 +449,7 @@ local function createSlider(parent, text, min, max, default, order, callback)
     end)
     
     UserInputService.InputChanged:Connect(function(input)
+        if not isAuthorized then return end -- BLOKADA
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local pos = math.clamp((input.Position.X - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0, 1)
             SliderFill.Size = UDim2.new(pos, 0, 1, 0)
@@ -355,12 +477,15 @@ local function createButton(parent, text, order, callback)
     Corner.CornerRadius = UDim.new(0, 8)
     Corner.Parent = Button
     
-    Button.MouseButton1Click:Connect(callback)
+    Button.MouseButton1Click:Connect(function()
+        if not isAuthorized then return end -- BLOKADA
+        callback()
+    end)
     
     return Button
 end
 
--- === COLOR PICKER (Bez zmian) ===
+-- === COLOR PICKER ===
 local function createColorPicker(parent, text, defaultColor, order, callback)
     local Container = Instance.new("Frame")
     Container.Size = UDim2.new(1, 0, 0, 35)
@@ -432,6 +557,8 @@ local function createColorPicker(parent, text, defaultColor, order, callback)
 
     
     ColorButton.MouseButton1Click:Connect(function()
+        if not isAuthorized then return end -- BLOKADA
+
         if rgbFrame then
             closePicker()
         else
@@ -488,15 +615,7 @@ local function createColorPicker(parent, text, defaultColor, order, callback)
     return Container
 end
 
-local function createColorPickerESP(parent, text, defaultColor, order, callback)
-    local picker = createColorPicker(parent, text, defaultColor, order, callback)
-    -- Tutaj usuniesz lub skomentujesz Label, który mówi 'Change Menu Keybind: RControl', 
-    -- ale to nie jest w createColorPicker, więc po prostu dodaj go normalnie.
-    return picker
-end
--- === KONIEC COLOR PICKER ===
-
--- === LOGIKA JUNKYARD ESP (Uproszczona: TYLKO HIGHLIGHT) ===
+-- === LOGIKA JUNKYARD ESP ===
 local espConnection = nil
 
 local function cleanupESP()
@@ -507,6 +626,8 @@ local function cleanupESP()
 end
 
 local function updateJunkyardESP()
+    if not isAuthorized then return end -- BLOKADA
+
     if not config.junkyardESP.enabled then
         cleanupESP()
         if espConnection then
@@ -521,7 +642,6 @@ local function updateJunkyardESP()
             local vehiclesContainer = workspace:FindFirstChild(JUNKYARD_CONTAINER_NAME)
 
             if not vehiclesContainer then
-                -- print("ESP Debug: Nie znaleziono kontenera pojazdów: " .. JUNKYARD_CONTAINER_NAME)
                 return
             end
 
@@ -531,8 +651,6 @@ local function updateJunkyardESP()
                 -- Sprawdzenie, czy to model I ma atrybut "Junkyard" = true
                 if vehicle:IsA("Model") and vehicle:GetAttribute("Junkyard") == true then
                     
-                    -- print("ESP Debug: Znaleziono pojazd Junkyard: " .. vehicle.Name)
-                    
                     currentlyVisible[vehicle] = true
                     
                     -- Tworzenie/Aktualizacja Highlight
@@ -541,10 +659,9 @@ local function updateJunkyardESP()
                         highlight.FillColor = config.junkyardESP.color
                         highlight.FillTransparency = config.junkyardESP.transparency
                         highlight.OutlineTransparency = 1
-                        highlight.Parent = vehicle -- Highlight działa najlepiej, gdy jest rodzicem modelu
+                        highlight.Parent = vehicle 
 
                         espHighlights[vehicle] = highlight
-                        -- print("ESP Debug: Utworzono nowe Highlight dla: " .. vehicle.Name)
                     end
                     
                 end
@@ -636,9 +753,11 @@ createColorPicker(tabs.visual.content, "Junkyard Highlight Color", config.junkya
     end
 end)
 
--- PLAYER TAB (bez zmian)
+-- PLAYER TAB 
 createLabel(tabs.player.content, "Movement Settings", 1)
 createToggle(tabs.player.content, "Enable Fly", 2, function(enabled)
+    if not isAuthorized then return end -- BLOKADA
+    
     config.fly.enabled = enabled
     flying = enabled
     
@@ -711,6 +830,8 @@ createSlider(tabs.player.content, "Fly Speed", 10, 200, config.fly.speed, 3, fun
 end)
 
 createToggle(tabs.player.content, "Enable Custom Walkspeed", 4, function(enabled)
+    if not isAuthorized then return end -- BLOKADA
+    
     config.walkspeed.enabled = enabled
     if enabled then
         humanoid.WalkSpeed = config.walkspeed.speed
@@ -726,9 +847,11 @@ createSlider(tabs.player.content, "Walkspeed", 16, 200, config.walkspeed.speed, 
     end
 end)
 
--- CONFIG TAB (bez zmian)
+-- CONFIG TAB 
 createLabel(tabs.config.content, "Configuration Management", 1)
 createButton(tabs.config.content, "Save Config", 2, function()
+    if not isAuthorized then return end -- BLOKADA
+    
     local configString = HttpService:JSONEncode(config)
     local success, err = pcall(function()
         writefile("script_config.json", configString)
@@ -743,6 +866,8 @@ createButton(tabs.config.content, "Save Config", 2, function()
 end)
 
 createButton(tabs.config.content, "Load Config", 3, function()
+    if not isAuthorized then return end -- BLOKADA
+
     local success, loadedConfig
     if isfile("script_config.json") then
         local configString = readfile("script_config.json")
@@ -774,10 +899,12 @@ createButton(tabs.config.content, "Load Config", 3, function()
     TitleText.Text = "Modern Script Hub"
 end)
 
--- SETTINGS TAB (bez zmian)
+-- SETTINGS TAB 
 createLabel(tabs.settings.content, "Menu Settings", 1)
 
 keybindButton = createButton(tabs.settings.content, "Change Menu Keybind: " .. config.menuKey.Name, 2, function()
+    if not isAuthorized then return end -- BLOKADA
+
     if isChangingKeybind then return end 
 
     isChangingKeybind = true
@@ -823,11 +950,14 @@ end)
 
 -- Close button functionality
 CloseButton.MouseButton1Click:Connect(function()
+    if not isAuthorized then return end -- BLOKADA
     ScreenGui.Enabled = false
 end)
 
 -- Menu toggle
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not isAuthorized then return end -- BLOKADA
+
     if not gameProcessed and not isChangingKeybind and input.KeyCode == config.menuKey then
         ScreenGui.Enabled = not ScreenGui.Enabled
     end
@@ -846,6 +976,8 @@ tabs.visual.button.TextColor3 = Color3.fromRGB(255, 255, 255)
 currentTab = tabs.visual
 
 -- Parent GUI
+MainGui = ScreenGui -- Zapisz referencję do głównego GUI
 ScreenGui.Parent = game:GetService("CoreGui")
 
-print("Modern Script Hub loaded successfully!")
+-- URUCHOM KEY SYSTEM
+createKeyInputGUI()
