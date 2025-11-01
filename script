@@ -1,5 +1,3 @@
--- Modern Roblox Script with Highlight, Fly, Walkspeed, Teleport, Auto Farm and GUI
--- System kluczy z zewnętrzną stroną zarządzania
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
