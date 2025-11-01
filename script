@@ -14,7 +14,7 @@ local humanoid = nil
 local camera = workspace.CurrentCamera
 
 -- Konfiguracja Key System
-local KEY_API_URL = "https://bettercode.space/roblox-keys/keys_api.json" -- <--- Twoja strona!
+local KEY_API_URL = "https://bettercode.space/pl/keys_api.json" -- <--- Twoja strona!
 -- ALTERNATYWNIE: "https://raw.githubusercontent.com/USERNAME/REPO/main/keys_api.json"
 -- LUB: "https://pastebin.com/raw/TWOJ_PASTE_ID"
 local USE_LOCAL_KEYS = false -- Zmień na true dla testów lokalnych (klucz: TEST-KEY1-DEMO-ABCD)
