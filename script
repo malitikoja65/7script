@@ -14,11 +14,12 @@ local humanoid = nil
 local camera = workspace.CurrentCamera
 
 -- Konfiguracja Key System
-local KEY_API_URL = "https://raw.githubusercontent.com/USERNAME/REPO/main/keys_api.json" -- <--- WSTAW SWÓJ URL!
--- ALTERNATYWNIE użyj: https://pastebin.com/raw/TWOJ_PASTE_ID
-local USE_LOCAL_KEYS = false -- Ustaw na true dla testów lokalnych
+local KEY_API_URL = "https://bettercode.space/roblox-keys/keys_api.json" -- <--- Twoja strona!
+-- ALTERNATYWNIE: "https://raw.githubusercontent.com/USERNAME/REPO/main/keys_api.json"
+-- LUB: "https://pastebin.com/raw/TWOJ_PASTE_ID"
+local USE_LOCAL_KEYS = false -- Zmień na true dla testów lokalnych (klucz: TEST-KEY1-DEMO-ABCD)
 local isAuthorized = false
-local currentUser = ""
+local currentUser = """
 
 -- Konfiguracja Gry
 local JUNKYARD_CONTAINER_NAME = "Vehicles"
